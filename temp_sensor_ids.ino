@@ -7,6 +7,7 @@
  * Digital Temperature Sensor DS18B20 commands (see sensor data sheet)
  */
 const byte CMD_CONVERT_TEMP     = 0x44;  // write(0x44, 1)  // 1 = keep line high during conversion
+const byte CMD_RECALL_E2        = 0xB8;  // write(0xB8)
 const byte CMD_READ_SCRATCHPAD  = 0xBE;  // write(0xBE)
 const byte CMD_WRITE_SCRATCHPAD = 0x4E;  // must always write 3 Byte: byte data[4]; data[0] = 0x4E; ...
                                          // write_bytes(data, 4)
@@ -22,10 +23,15 @@ const int ID_LENGTH = 8;
 const byte waterTempSensorId[ID_LENGTH]   = {0x28, 0x8C, 0x8C, 0x79, 0x06, 0x00, 0x00, 0x89};
 const byte ambientTempSensorId[ID_LENGTH] = {0x28, 0x7C, 0x28, 0x79, 0x06, 0x00, 0x00, 0xD7};
 
+const byte SENSOR_PRECISION = 10;
+
 /*
  * Number of bytes of the data vector (= temperature)
  */
-const int DATA_LENGTH = 9;
+const byte DATA_LENGTH = 9;
+const byte DATA_CONFIG_BYTE = 4;
+
+const byte WRITE_BUF_LENGTH = 4; 
 
 struct Temperature {
   byte resolution; // bits (= 9..12)
@@ -56,8 +62,35 @@ void setup() {
     } else {
       Serial.print(" --> UNKNOWN Sensor");
     }
+
+    //
+    // Read CONFIG => precision
+    //
+    byte precision;
+    if (! readPrecision(addr, &precision)) {
+      continue;
+    }
+    Serial.print(", precision: ");
+    Serial.print(precision);
     
     Serial.println();
+
+    //
+    // Update precision (if needed)
+    //
+    if (precision != SENSOR_PRECISION) {
+      Serial.print("Changing precision to ");
+      Serial.println(SENSOR_PRECISION);
+      if (! writePrecision(addr, SENSOR_PRECISION)) {
+        continue;
+      }
+      byte precision2;
+      if (! readPrecision(addr, &precision2)) {
+        continue;
+      }
+      Serial.print("New precision: ");
+      Serial.println(precision);
+    }
   }
   
   Serial.println("No more addresses.");
@@ -73,7 +106,7 @@ void loop() {
     if (OneWire::crc8(addr, ID_LENGTH-1) != addr[ID_LENGTH-1]) {
       Serial.print("Sensor ID ");
       printAddr(addr);
-      Serial.println(" --> CRC is not valid!");
+      Serial.println(" --> CRC of ID is not valid!");
       continue;
     }
     
@@ -84,17 +117,11 @@ void loop() {
     ds.write(CMD_CONVERT_TEMP, 1);        
     delay(800);     // 12 bit precision reauires 750ms  
     
-    // byte present = ds.reset();  // returns number of slaves
-    ds.reset();
-    ds.select(addr);  
-      // Read Scratchpad  
-    ds.write(CMD_READ_SCRATCHPAD);
-
     byte data[DATA_LENGTH];
-    // Read 8 byte of data + 1 byte of CRC
-    for (byte i = 0; i < DATA_LENGTH; i++) {           
-      data[i] = ds.read();
+    if (! readScratchpad(addr, &data[0])) {
+      continue;
     }
+    
     Temperature temp = getCelcius(data);
 
     if (isWaterSensor(addr)) {
@@ -117,6 +144,7 @@ void loop() {
     Serial.println();
     
     #ifdef PRINT_RAW_SENSOR_VALUES
+      Serial.print("Raw data: ");
       printRawData(data);
       Serial.println();
     #endif      
@@ -131,6 +159,31 @@ void loop() {
   delay(5000);
   Serial.println();
   firstRun = false;
+}
+
+boolean readScratchpad(byte addr[], byte *data) {
+  // byte present = ds.reset();  // returns number of slaves
+  ds.reset();
+  // Talk to sensor with 'addr' only:
+  ds.select(addr);
+  ds.write(CMD_READ_SCRATCHPAD);
+  
+  // Read 8 byte of data + 1 byte of CRC
+  for (byte i = 0; i < DATA_LENGTH; i++) {           
+    data[i] = ds.read();
+  }
+  ds.reset();
+  
+  if (OneWire::crc8(data, DATA_LENGTH-1) != data[DATA_LENGTH-1]) {
+    Serial.print("Sensor ID ");
+    printAddr(addr);
+    Serial.println(" --> CRC of data is not valid!");
+    Serial.print("Raw data: ");
+    printRawData(data);
+    Serial.println();
+    return false;
+  }
+  return true;
 }
 
 Temperature getCelcius(byte data[]) {
@@ -154,6 +207,43 @@ Temperature getCelcius(byte data[]) {
   }
   temp.celcius = (float)raw / 16.0;
   return temp;
+}
+
+boolean readPrecision(byte addr[], byte *precision) {
+  byte data[DATA_LENGTH];
+  if (! readScratchpad(addr, &data[0])) {
+    return false;
+  }
+  *precision = byte(9 + (data[DATA_CONFIG_BYTE] >> 5));
+  return true;
+}
+
+boolean writePrecision(byte addr[], byte precision) {
+  if (precision < 9 || precision > 12) {
+    Serial.print("Invalid precision: ");
+    Serial.println(precision);
+    return false;
+  }
+  ds.reset();
+  // Talk to sensor with 'addr' only:
+  ds.select(addr);
+  byte config = (precision - 9) << 5;
+  byte buf[WRITE_BUF_LENGTH] = { CMD_WRITE_SCRATCHPAD, 0, 0, config};
+  ds.write_bytes(buf, WRITE_BUF_LENGTH);
+
+  byte data[DATA_LENGTH];
+  if (! readScratchpad(addr, &data[0])) {
+    return false;
+  }
+  //
+  // TODO: Check whether the read value is the same as the written one
+  //
+  ds.reset();
+  ds.select(addr);
+  ds.write(CMD_RECALL_E2); // takes 10ms to complete
+  delay(10);
+  ds.reset();
+  return true;
 }
 
 void printAddr(byte addr[]) {
