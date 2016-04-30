@@ -4,12 +4,17 @@
 //#define PRINT_RAW_SENSOR_VALUES
 
 /*
+ * Temperature sensor resolution in bits. Range: 9..12
+ */
+const byte NEW_SENSOR_RESOLUTION = 11;
+
+/*
  * Digital Temperature Sensor DS18B20 commands (see sensor data sheet)
  */
 const byte CMD_CONVERT_TEMP     = 0x44;  // write(0x44, 1)  // 1 = keep line high during conversion
 const byte CMD_RECALL_E2        = 0xB8;  // write(0xB8)
 const byte CMD_READ_SCRATCHPAD  = 0xBE;  // write(0xBE)
-const byte CMD_WRITE_SCRATCHPAD = 0x4E;  // must always write 3 Byte: byte data[4]; data[0] = 0x4E; ...
+const byte CMD_WRITE_SCRATCHPAD = 0x4E;  // must always write 3 Byte data: byte data[4]; data[0] = 0x4E; ...
                                          // write_bytes(data, 4)
 const byte CMD_COPY_SCRATCHPAD  = 0x48;  // write(0x48)
 
@@ -23,7 +28,6 @@ const int ID_LENGTH = 8;
 const byte waterTempSensorId[ID_LENGTH]   = {0x28, 0x8C, 0x8C, 0x79, 0x06, 0x00, 0x00, 0x89};
 const byte ambientTempSensorId[ID_LENGTH] = {0x28, 0x7C, 0x28, 0x79, 0x06, 0x00, 0x00, 0xD7};
 
-const byte SENSOR_PRECISION = 10;
 
 /*
  * Number of bytes of the data vector (= temperature)
@@ -64,32 +68,33 @@ void setup() {
     }
 
     //
-    // Read CONFIG => precision
+    // Read CONFIG => resolution
     //
-    byte precision;
-    if (! readPrecision(addr, &precision)) {
+    byte resolution;
+    if (! readResolution(addr, &resolution)) {
       continue;
     }
-    Serial.print(", precision: ");
-    Serial.print(precision);
+    Serial.print(", resolution: ");
+    Serial.print(resolution);
     
     Serial.println();
 
     //
-    // Update precision (if needed)
+    // Update resolution (if needed)
     //
-    if (precision != SENSOR_PRECISION) {
-      Serial.print("Changing precision to ");
-      Serial.println(SENSOR_PRECISION);
-      if (! writePrecision(addr, SENSOR_PRECISION)) {
+    if (resolution != NEW_SENSOR_RESOLUTION) {
+      Serial.print("Changing resolution to ");
+      Serial.println(NEW_SENSOR_RESOLUTION);
+      if (! writeResolution(addr, NEW_SENSOR_RESOLUTION)) {
+        Serial.println("Writing new resolution failed.");
         continue;
       }
-      byte precision2;
-      if (! readPrecision(addr, &precision2)) {
+      byte resolution2;
+      if (! readResolution(addr, &resolution2)) {
         continue;
       }
-      Serial.print("New precision: ");
-      Serial.println(precision);
+      Serial.print("New resolution: ");
+      Serial.println(resolution2);
     }
   }
   
@@ -115,7 +120,7 @@ void loop() {
     ds.select(addr);
     // Start temp readout and conversion to scratchpad, with parasite power on at the end
     ds.write(CMD_CONVERT_TEMP, 1);        
-    delay(800);     // 12 bit precision reauires 750ms  
+    delay(800);     // 12 bit resolution reauires 750ms  
     
     byte data[DATA_LENGTH];
     if (! readScratchpad(addr, &data[0])) {
@@ -209,39 +214,29 @@ Temperature getCelcius(byte data[]) {
   return temp;
 }
 
-boolean readPrecision(byte addr[], byte *precision) {
+boolean readResolution(byte addr[], byte *resolution) {
   byte data[DATA_LENGTH];
   if (! readScratchpad(addr, &data[0])) {
     return false;
   }
-  *precision = byte(9 + (data[DATA_CONFIG_BYTE] >> 5));
+  // see specification for config byte: resolution is in bits 5, 6
+  *resolution = byte(9 + (data[DATA_CONFIG_BYTE] >> 5));
   return true;
 }
 
-boolean writePrecision(byte addr[], byte precision) {
-  if (precision < 9 || precision > 12) {
-    Serial.print("Invalid precision: ");
-    Serial.println(precision);
+boolean writeResolution(byte addr[], byte resolution) {
+  if (resolution < 9 || resolution > 12) {
+    Serial.print("Invalid resolution: ");
+    Serial.println(resolution);
     return false;
   }
   ds.reset();
   // Talk to sensor with 'addr' only:
   ds.select(addr);
-  byte config = (precision - 9) << 5;
+  // see specification for config byte: resolution is in bits 5+6, with bits 0..4 = don't care
+  byte config = (resolution - 9) << 5;
   byte buf[WRITE_BUF_LENGTH] = { CMD_WRITE_SCRATCHPAD, 0, 0, config};
   ds.write_bytes(buf, WRITE_BUF_LENGTH);
-
-  byte data[DATA_LENGTH];
-  if (! readScratchpad(addr, &data[0])) {
-    return false;
-  }
-  //
-  // TODO: Check whether the read value is the same as the written one
-  //
-  ds.reset();
-  ds.select(addr);
-  ds.write(CMD_RECALL_E2); // takes 10ms to complete
-  delay(10);
   ds.reset();
   return true;
 }
