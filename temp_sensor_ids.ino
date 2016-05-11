@@ -242,12 +242,12 @@ boolean writeResolution(byte addr[], byte resolution) {
 }
 
 void printAddr(byte addr[]) {
-  Serial.write('{');
   for(byte i = 0; i < ID_LENGTH; i++) {
-    Serial.write(' ');
     Serial.print(addr[i], HEX);
+    if (i < ID_LENGTH - 1) {
+      Serial.write('-');
+    }
   }
-  Serial.print(" }");
 }
 
 void printRawData(byte data[]) {
