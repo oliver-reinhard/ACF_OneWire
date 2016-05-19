@@ -3,6 +3,8 @@
 // comment this line to suppress printing raw value
 //#define PRINT_RAW_SENSOR_VALUES
 
+#define ONE_WIRE_PIN 10
+
 /*
  * Temperature sensor resolution in bits. Range: 9..12
  */
@@ -43,7 +45,7 @@ struct Temperature {
 };
 
 
-OneWire  ds(10);  // on pin 10 (a 4.7K pull-up resistor to 5V is necessary)
+OneWire  ds(ONE_WIRE_PIN);  // on pin 10 (a 4.7K pull-up resistor to 5V is necessary)
 boolean firstRun = true;
 
 void setup() {
@@ -243,6 +245,9 @@ boolean writeResolution(byte addr[], byte resolution) {
 
 void printAddr(byte addr[]) {
   for(byte i = 0; i < ID_LENGTH; i++) {
+    if (addr[i] < 16) {
+       Serial.print('0');
+    }
     Serial.print(addr[i], HEX);
     if (i < ID_LENGTH - 1) {
       Serial.write('-');
