@@ -49,7 +49,7 @@ OneWire  ds(ONE_WIRE_PIN);  // on pin 10 (a 4.7K pull-up resistor to 5V is neces
 boolean firstRun = true;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   byte addr[ID_LENGTH];
   while(ds.search(addr)) {
