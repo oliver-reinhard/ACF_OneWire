@@ -50,6 +50,9 @@ boolean firstRun = true;
 
 void setup() {
   Serial.begin(115200);
+  while (!Serial) {
+    ; // wait for serial port to connect.
+  }
   
   byte addr[ID_LENGTH];
   while(ds.search(addr)) {
