@@ -78,7 +78,7 @@ void DS18B20_Controller::completeSensorReadout() {
     if(sensors[i]->sensorStatus == DS18B20_SENSOR_OK) {
       sensors[i]->sensorStatus = DS18B20_SENSOR_NOK;
     }
-    sensors[i]->currentTemp  = CF_UNDEFINED_TEMPERATURE;
+    sensors[i]->currentTemp  = AACF_UNDEFINED_TEMPERATURE;
   }
   
   uint8_t addr[DS18B20_SENSOR_ID_BYTES];
@@ -112,8 +112,8 @@ void DS18B20_Controller::completeSensorReadout() {
         
       } else if (sensor->sensorStatus == DS18B20_SENSOR_NOK) {
         // Ensure temperature is plausible:
-        if((sensor->rangeMin == CF_UNDEFINED_TEMPERATURE || readout.celcius >= sensor->rangeMin) 
-            && (sensor->rangeMax == CF_UNDEFINED_TEMPERATURE || readout.celcius <= sensor->rangeMax)) {
+        if((sensor->rangeMin == ACF_UNDEFINED_TEMPERATURE || readout.celcius >= sensor->rangeMin) 
+            && (sensor->rangeMax == ACF_UNDEFINED_TEMPERATURE || readout.celcius <= sensor->rangeMax)) {
           sensor->sensorStatus = DS18B20_SENSOR_OK;
           sensor->currentTemp  = readout.celcius;
           #ifdef DEBUG_DS18B20
@@ -201,7 +201,7 @@ DS18B20_Readout DS18B20_Controller::getCelcius(uint8_t data[]) {
 }
 
 
-char *formatTemperature(CF_Temperature t, char s[MAX_TEMPERATURE_STR_LEN]) {
+char *formatTemperature(ACF_Temperature t, char s[MAX_TEMPERATURE_STR_LEN]) {
   uint8_t deg = t / 100;
   uint8_t frac = t % 100;
   s[8] = '\0';

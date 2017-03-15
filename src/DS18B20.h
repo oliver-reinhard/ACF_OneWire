@@ -1,11 +1,11 @@
-#ifndef CF_DS18B20_H_INCLUDED
-  #define CF_DS18B20_H_INCLUDED
+#ifndef ACF_DS18B20_H_INCLUDED
+  #define ACF_DS18B20_H_INCLUDED
   
   #include <Arduino.h>
   #include <OneWire.h>
   
-  typedef int16_t CF_Temperature;  // [°C * 100]
-  const CF_Temperature CF_UNDEFINED_TEMPERATURE = INT16_MIN; // [°C * 100];
+  typedef int16_t ACF_Temperature;  // [°C * 100]
+  const ACF_Temperature ACF_UNDEFINED_TEMPERATURE = INT16_MIN; // [°C * 100];
 
   const uint8_t DS18B20_SENSOR_ID_BYTES = 8;
   typedef uint8_t DS18B20_SensorID[DS18B20_SENSOR_ID_BYTES];
@@ -45,15 +45,15 @@
       /* The ROM sensor address of the corresponding physical temperature sensor. */
       DS18B20_SensorID id;
       /* If defined then a temperature below this lower temperature limit will lead to a sensor status of DS18B20_SENSOR_NOK. */
-      CF_Temperature rangeMin = CF_UNDEFINED_TEMPERATURE;
+      ACF_Temperature rangeMin = ACF_UNDEFINED_TEMPERATURE;
       /* If defined then a temperature above this lower temperature limit will lead to a sensor status of DS18B20_SENSOR_NOK. */
-      CF_Temperature rangeMax = CF_UNDEFINED_TEMPERATURE;
+      ACF_Temperature rangeMax = ACF_UNDEFINED_TEMPERATURE;
       /* The current state / quality of the temperature information of the assigned physical sensor. */
       DS18B20_StatusEnum sensorStatus = DS18B20_SENSOR_INITIALISING;
       /* Only valid if status is DS18B20_SENSOR_OK or DS18B20_SENSOR_ID_AUTO_ASSIGNED. */
-      CF_Temperature currentTemp = CF_UNDEFINED_TEMPERATURE;
+      ACF_Temperature currentTemp = ACF_UNDEFINED_TEMPERATURE;
       /* Temperature value that was last recorded by the logger. */
-      CF_Temperature lastLoggedTemp = CF_UNDEFINED_TEMPERATURE;
+      ACF_Temperature lastLoggedTemp = ACF_UNDEFINED_TEMPERATURE;
       /* Timestamp captured when the temperature value was last recorded by the logger. */
       uint32_t lastLoggedTime = 0L;
 
@@ -94,7 +94,7 @@
   
   struct DS18B20_Readout {
     uint8_t resolution;     // number of bits (= 9..12)
-    CF_Temperature celcius; // [°C * 100]
+    ACF_Temperature celcius; // [°C * 100]
   };
   
 
@@ -182,7 +182,7 @@
   /**
    * Returns the temperature in a dotted notation, 8 chars + terminal '\0': ["-"]dd.ff"°C" (optional "-", d = degrees Celsius (2 digits), f = fraction (1 digit))
    */
-  char *formatTemperature(CF_Temperature t, char buf[MAX_TEMPERATURE_STR_LEN]);
+  char *formatTemperature(ACF_Temperature t, char buf[MAX_TEMPERATURE_STR_LEN]);
 
 
   #define MAX_DS18B20_SENSOR_ID_STR_LEN (3*DS18B20_SENSOR_ID_BYTES)
