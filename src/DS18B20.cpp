@@ -78,7 +78,7 @@ void DS18B20_Controller::completeSensorReadout() {
     if(sensors[i]->sensorStatus == DS18B20_SENSOR_OK) {
       sensors[i]->sensorStatus = DS18B20_SENSOR_NOK;
     }
-    sensors[i]->currentTemp  = AACF_UNDEFINED_TEMPERATURE;
+    sensors[i]->currentTemp  = ACF_UNDEFINED_TEMPERATURE;
   }
   
   uint8_t addr[DS18B20_SENSOR_ID_BYTES];
